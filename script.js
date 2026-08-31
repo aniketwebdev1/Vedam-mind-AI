@@ -1,4 +1,4 @@
-// server.js — VedamMind backend
+// server.js — CampusMind backend
 // Run: npm install express cors   then   node server.js
 // Server chalega: http://localhost:5000
 
@@ -14,7 +14,7 @@ const students = {}; // { name: { attendance, subjects, missed, mood, riskScore,
 
 // ---- Health check ----
 app.get("/", (req, res) => {
-  res.json({ status: "VedamMind backend is running ✅" });
+  res.json({ status: "CampusMind backend is running ✅" });
 });
 
 // ---- Login / create student ----
@@ -156,5 +156,5 @@ app.get("/api/student/:name", (req, res) => {
 
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`VedamMind backend running at http://localhost:${PORT}`);
+  console.log(`CampusMind backend running at http://localhost:${PORT}`);
 });
