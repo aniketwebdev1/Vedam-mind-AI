@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CampusMind — AI Academic Risk Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F3FF;
+    --surface:#FFFFFF; --surface-2:#FBF9FF;
+    --line:#E9E3FA; --line-strong:#D9D0F5;
+    --ink:#241F3D; --muted:#8A82A3;
+
+    --coral:#FF6B57; --coral-deep:#DD4A36; --coral-tint:#FFE7E2;
+    --mint:#2FD897; --mint-deep:#17AD79; --mint-tint:#DEFBF0;
+    --sun:#FFC444; --sun-deep:#E2A012; --sun-tint:#FFF3D6;
+    --sky:#4EA1FF; --sky-deep:#2B7FDB; --sky-tint:#E4F1FF;
+    --berry:#FF5FA2; --berry-deep:#DB3E82; --berry-tint:#FFE4F1;
+
+    --font-display:'Fredoka', system-ui, sans-serif;
+    --font-body:'Nunito', system-ui, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:var(--font-body); }
+  html,body{ height:100%; }
+  body {
+    min-height:100vh;
+    background:
+      radial-gradient(circle, rgba(36,31,61,0.07) 1.6px, transparent 1.6px) 0 0/24px 24px,
+      var(--bg);
+    color:var(--ink);
+    display:flex; align-items:flex-start; justify-content:center;
+    padding: 32px 16px;
+  }
+
+  h1, h2, h3, .streak-num, .score, .mascot-face { font-family:var(--font-display); }
+
+  .app { width:100%; max-width:520px; position:relative; }
+
+  .screen { display:none; }
+  .screen.active { display:block; animation: slideIn 0.45s cubic-bezier(.2,.8,.2,1); }
+  @keyframes slideIn { from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- Confetti ---------- */
+  #confettiLayer { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:999; }
+  .confetti-piece { position:absolute; top:-20px; border-radius:2px; opacity:.95; animation: confettiFall linear forwards; }
+  @keyframes confettiFall { to { transform: translateY(112vh) rotate(var(--rot)); opacity:0; } }
+
+  /* ---------- Mascot ---------- */
+  .mascot-hero { display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:18px; }
+  .mascot-face {
+    width:76px; height:76px; border-radius:50%;
+    background:var(--sun-tint); border:3px solid var(--sun-deep);
+    display:flex; align-items:center; justify-content:center; font-size:38px;
+    animation: mascotBob 2.6s ease-in-out infinite;
+  }
+  .mascot-face.small { width:46px; height:46px; font-size:22px; border-width:2.5px; flex-shrink:0; }
+  @keyframes mascotBob { 0%,100%{ transform:translateY(0) rotate(-2deg);} 50%{ transform:translateY(-6px) rotate(2deg);} }
+  .speech-bubble {
+    position:relative; background:var(--surface-2); border:2px solid var(--line);
+    border-radius:16px; padding:10px 14px; font-size:13px; color:var(--ink); font-weight:600;
+  }
+  .mascot-hero .speech-bubble { text-align:center; max-width:320px; }
+  .mascot-row { display:flex; align-items:center; gap:12px; }
+  .mascot-row .speech-bubble { flex:1; }
+  .mascot-row .speech-bubble::before {
+    content:""; position:absolute; left:-7px; top:16px; width:12px; height:12px;
+    background:var(--surface-2); border-left:2px solid var(--line); border-bottom:2px solid var(--line);
+    transform:rotate(45deg);
+  }
+  .mascot-card { margin-bottom:16px; }
+
+  /* ---------- Login ---------- */
+  .login-wrap{ min-height: 80vh; display:flex; align-items:center; justify-content:center; }
+  .login-card {
+    width:100%;
+    background:var(--surface);
+    border:2.5px solid var(--line);
+    border-radius:28px;
+    padding:44px 32px;
+    text-align:center;
+    box-shadow:0 18px 0 -6px rgba(255,196,68,0.18), 0 24px 50px rgba(36,31,61,0.10);
+  }
+  h1 { font-size:26px; font-weight:700; margin-bottom:6px; letter-spacing:-0.2px; color:var(--ink); }
+  .subtitle { color:var(--muted); font-size:13px; margin-bottom:28px; font-weight:600; }
+
+  input, textarea {
+    width:100%; padding:13px 16px; border-radius:14px;
+    border:2px solid var(--line); background:var(--surface-2); color:var(--ink);
+    font-size:14px; margin-bottom:14px; outline:none;
+    transition:border .2s, box-shadow .2s;
+    font-family:var(--font-body); font-weight:600;
+  }
+  input::placeholder, textarea::placeholder { color:var(--muted); font-weight:600; }
+  input:focus, textarea:focus { border-color:var(--coral); box-shadow:0 0 0 4px var(--coral-tint); }
+
+  button {
+    width:100%; padding:14px; border-radius:16px; border:none;
+    background:var(--coral);
+    color:#fff; font-weight:800; font-size:14.5px; cursor:pointer;
+    box-shadow:0 4px 0 var(--coral-deep);
+    transition:transform .1s, box-shadow .1s;
+    font-family:var(--font-body);
+  }
+  button:hover { filter:brightness(1.04); }
+  button:active { transform:translateY(4px); box-shadow:0 0 0 var(--coral-deep); }
+  .btn-ghost {
+    background:var(--surface); border:2px solid var(--line); color:var(--ink);
+    box-shadow:0 4px 0 var(--line);
+  }
+  .btn-ghost:active { box-shadow:0 0 0 var(--line); }
+
+  /* ---------- Topbar ---------- */
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; position:relative; }
+  .greeting h2 { font-size:21px; font-weight:700; font-family:var(--font-display); }
+  .greeting span { color:var(--coral); }
+  .greeting p { color:var(--muted); font-size:12px; margin-top:3px; font-weight:600; }
+  .topbar-actions { display:flex; align-items:center; }
+  .avatar {
+    width:44px; height:44px; border-radius:50%;
+    background:linear-gradient(135deg, var(--sun), var(--coral));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff;
+    border:2.5px solid var(--surface); box-shadow:0 0 0 2px var(--sun-deep);
+    font-family:var(--font-display); cursor:pointer;
+  }
+  .avatar:hover { filter:brightness(1.06); }
+
+  /* ---------- Mute + notification buttons ---------- */
+  .icon-btn {
+    position:relative; width:40px; height:40px; border-radius:12px;
+    background:var(--surface-2); border:2px solid var(--line); color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:16px; margin-right:10px; flex-shrink:0;
+  }
+  .notif-dot {
+    position:absolute; top:4px; right:4px; width:9px; height:9px; border-radius:50%;
+    background:var(--coral); border:2px solid var(--surface); display:none;
+  }
+  .notif-panel {
+    position:absolute; top:56px; right:0; width:270px; max-height:320px; overflow-y:auto;
+    background:var(--surface); border:2px solid var(--line); border-radius:16px;
+    padding:10px; box-shadow:0 20px 50px rgba(36,31,61,0.18); z-index:50; display:none;
+  }
+  .notif-panel.open { display:block; animation: slideIn .25s ease; }
+  .notif-item { padding:10px; border-radius:10px; margin-bottom:6px; background:var(--surface-2); border:1.5px solid var(--line); }
+  .notif-item:last-child { margin-bottom:0; }
+  .notif-item strong { display:block; font-size:12.5px; font-weight:700; }
+  .notif-item span { color:var(--muted); font-size:10.5px; font-weight:600; }
+  .notif-empty { color:var(--muted); font-size:12px; text-align:center; padding:20px 6px; font-weight:600; }
+
+  .card {
+    background:var(--surface);
+    border:2px solid var(--line);
+    border-radius:22px; padding:22px; margin-bottom:16px;
+    box-shadow: 0 6px 0 rgba(36,31,61,0.05);
+    position:relative; overflow:hidden;
+  }
+  .card::before { content:""; position:absolute; top:0; left:0; right:0; height:5px; background:var(--line-strong); }
+  .card.accent-mint::before { background:var(--mint); }
+  .card.accent-coral::before { background:var(--coral); }
+  .card.accent-sun::before { background:var(--sun); }
+  .card.accent-sky::before { background:var(--sky); }
+  .card.accent-berry::before { background:var(--berry); }
+  .card h3 { font-size:15px; font-weight:600; margin-bottom:14px; display:flex; align-items:center; gap:8px; font-family:var(--font-display); }
+  .card .card-sub { color:var(--muted); font-size:11.5px; margin-top:-8px; margin-bottom:16px; font-weight:600; }
+
+  .row { display:flex; gap:12px; }
+  .row > div { flex:1; }
+  label { font-size:11.5px; color:var(--muted); display:block; margin-bottom:6px; font-weight:700; }
+
+  /* ---------- Badges strip ---------- */
+  .badges-strip { display:flex; gap:12px; overflow-x:auto; padding:4px 2px 8px; }
+  .badge-pill {
+    flex-shrink:0; display:flex; align-items:center; gap:6px;
+    background:var(--sun-tint); border:2px solid var(--sun-deep); border-radius:999px;
+    padding:8px 14px; font-size:12px; font-weight:700; white-space:nowrap; color:var(--ink);
+    transform:rotate(-2deg);
+  }
+  .badge-pill:nth-child(even) { transform:rotate(2deg); background:var(--mint-tint); border-color:var(--mint-deep); }
+  .badge-pill:nth-child(3n) { background:var(--sky-tint); border-color:var(--sky-deep); }
+  .badge-pill.pop-in { animation: popIn .4s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes popIn { from{ transform:scale(0) rotate(0);} to{ transform:scale(1) rotate(-2deg);} }
+
+  /* ---------- Subjects table ---------- */
+  .subject-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; }
+  .subject-row input { margin-bottom:0; }
+  .subject-row input.sname { flex:1.4; }
+  .subject-row input.smarks { flex:.8; }
+  .remove-btn {
+    width:32px; height:32px; flex-shrink:0; border-radius:10px;
+    background:var(--coral-tint); border:2px solid var(--coral-deep); color:var(--coral-deep);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; font-weight:800;
+  }
+  .add-subject-btn {
+    width:100%; padding:11px; border-radius:12px;
+    background:var(--surface-2); border:2px dashed var(--line-strong); color:var(--muted);
+    font-size:13px; font-weight:700; cursor:pointer; margin-bottom:14px; text-align:center;
+  }
+  .add-subject-btn:hover { border-color:var(--coral); color:var(--coral-deep); }
+
+  /* ---------- Study hours / streak ---------- */
+  .streak-box { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .streak-num { font-size:32px; font-weight:700; color:var(--coral); }
+  .progress-bar { height:11px; border-radius:999px; background:var(--surface-2); border:2px solid var(--line); overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg, var(--mint), var(--sky)); width:0%; transition:width .6s ease; }
+
+  /* ---------- Weekly chart ---------- */
+  .chart-wrap { display:flex; align-items:flex-end; gap:8px; height:110px; margin-bottom:16px; }
+  .chart-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px; }
+  .chart-bar { width:100%; max-width:26px; border-radius:8px 8px 4px 4px; background:linear-gradient(180deg, var(--sun), var(--coral)); transition:height .5s ease; min-height:4px; }
+  .chart-bar.today { background:linear-gradient(180deg, var(--berry), var(--coral-deep)); }
+  .chart-label { font-size:10px; color:var(--muted); font-weight:700; }
+
+  /* ---------- Risk gauge ---------- */
+  .gauge-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:10px; }
+  .gauge {
+    width:150px; height:150px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:conic-gradient(var(--mint) 0%, var(--line) 0);
+    transition:background .6s ease; position:relative;
+    border:3px solid var(--surface); box-shadow:0 0 0 3px var(--line);
+  }
+  .gauge::before { content:""; position:absolute; width:118px; height:118px; border-radius:50%; background:var(--surface); }
+  .gauge-inner { position:relative; text-align:center; }
+  .gauge-inner .score { font-size:32px; font-weight:700; }
+  .gauge-inner .label { font-size:11px; color:var(--muted); font-weight:700; }
+
+  .risk-tag { display:inline-block; padding:6px 16px; border-radius:999px; font-size:12.5px; font-weight:800; }
+  .risk-low { background:var(--mint-tint); color:var(--mint-deep); }
+  .risk-medium { background:var(--sun-tint); color:var(--sun-deep); }
+  .risk-high { background:var(--coral-tint); color:var(--coral-deep); }
+
+  .suggestions li { font-size:13px; color:var(--ink); margin-bottom:9px; padding-left:20px; position:relative; font-weight:600; }
+  .suggestions li::before { content:"→"; position:absolute; left:0; color:var(--coral); font-weight:800; }
+
+  /* ---------- Resources ---------- */
+  .resource-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px; border-radius:14px; background:var(--surface-2);
+    border:2px solid var(--line); margin-bottom:10px; cursor:pointer;
+    transition:border .2s, transform .1s;
+  }
+  .resource-item:hover { border-color:var(--sky); transform:translateY(-1px); }
+  .resource-item .r-icon { font-size:18px; }
+  .resource-item .r-text strong { display:block; font-size:13px; }
+  .resource-item .r-text span { font-size:11.5px; color:var(--muted); font-weight:600; }
+
+  /* ---------- Counselor CTA on portal ---------- */
+  .counselor-cta {
+    display:flex; align-items:center; gap:12px;
+    background:var(--coral-tint);
+    border:2.5px solid var(--coral); border-radius:18px; padding:16px;
+    margin-bottom:18px; animation:pulseGlow 2.4s infinite; cursor:pointer;
+  }
+  @keyframes pulseGlow { 0%,100%{ box-shadow:0 0 0 rgba(255,107,87,0);} 50%{ box-shadow:0 0 0 8px rgba(255,107,87,0.14);} }
+  .counselor-cta .icon { font-size:26px; }
+  .counselor-cta strong { display:block; font-size:14px; margin-bottom:2px; }
+  .counselor-cta p { font-size:12.5px; color:var(--ink); font-weight:600; }
+  .counselor-cta .arrow { margin-left:auto; font-size:18px; color:var(--coral-deep); }
+
+  /* ---------- Leaderboard ---------- */
+  .leader-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px; border-radius:16px; background:var(--surface-2);
+    border:2px solid var(--line); margin-bottom:8px;
+  }
+  .leader-item.me { border-color:var(--sky); background:var(--sky-tint); }
+  .leader-item:last-child { margin-bottom:0; }
+  .leader-rank {
+    width:34px; height:34px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:13px; background:var(--surface); color:var(--muted);
+    border:2px solid var(--line); font-family:var(--font-display);
+  }
+  .leader-rank.gold { background:var(--sun-tint); color:var(--sun-deep); border-color:var(--sun-deep); }
+  .leader-rank.silver { background:#EFEDF7; color:#847EA0; border-color:#C9C2E6; }
+  .leader-rank.bronze { background:var(--coral-tint); color:var(--coral-deep); border-color:var(--coral-deep); }
+  .leader-info { flex:1; min-width:0; }
+  .leader-info strong { display:block; font-size:13.5px; font-weight:700; }
+  .leader-info span { font-size:11px; color:var(--muted); font-weight:600; }
+  .leader-hours { font-size:13px; font-weight:800; color:var(--coral-deep); flex-shrink:0; }
+
+  /* ---------- Tab content wrapper + bottom tab bar ---------- */
+  .tab-content { padding-bottom: 108px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; animation: slideIn 0.35s ease; }
+
+  .tabbar {
+    position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    width:calc(100% - 32px); max-width:488px;
+    display:flex; justify-content:space-around; gap:4px;
+    background:var(--surface); border:2px solid var(--line); border-radius:22px;
+    padding:8px 6px; box-shadow:0 16px 40px rgba(36,31,61,0.14); z-index:40;
+  }
+  .tab-btn {
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:none; border:none; color:var(--muted); font-size:10px; font-weight:700;
+    padding:8px 4px; border-radius:14px; cursor:pointer; transition:color .2s, background .2s;
+    box-shadow:none;
+  }
+  .tab-btn:hover { filter:none; }
+  .tab-btn:active { transform:none; box-shadow:none; }
+  .tab-btn .tab-icon { font-size:18px; line-height:1; }
+  .tab-btn.active { color:#fff; background:linear-gradient(135deg, var(--coral), var(--berry)); }
+
+  /* ---------- Floating chat button ---------- */
+  .fab-chat {
+    position:fixed; bottom:92px; right:max(16px, calc(50vw - 244px));
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg, var(--coral), var(--berry));
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 4px 0 var(--berry-deep); cursor:pointer; z-index:45; border:none; color:#fff;
+    animation: fabPulse 2.6s infinite;
+  }
+  .fab-chat:hover { filter:brightness(1.04); }
+  .fab-chat:active { transform:translateY(2px); }
+  @keyframes fabPulse {
+    0%,100% { box-shadow:0 4px 0 var(--berry-deep), 0 0 0 0 rgba(255,95,162,0.3); }
+    50% { box-shadow:0 4px 0 var(--berry-deep), 0 0 0 9px rgba(255,95,162,0.14); }
+  }
+
+  /* ---------- Chat page ---------- */
+  .chat-page-header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+  .back-btn {
+    width:38px; height:38px; border-radius:12px; background:var(--surface-2);
+    border:2px solid var(--line); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:16px; flex-shrink:0;
+  }
+  .back-btn:hover { border-color:var(--coral); }
+  .chat-page-header h2 { font-size:17px; font-weight:700; font-family:var(--font-display); }
+  .chat-page-header p { font-size:11.5px; color:var(--muted); font-weight:600; }
+
+  .chat-window {
+    height: 380px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+    padding: 6px 4px 14px;
+  }
+  .bubble { max-width:85%; padding:11px 15px; border-radius:16px; font-size:13.5px; line-height:1.5; font-weight:600; }
+  .bot { align-self:flex-start; background:var(--surface-2); border:2px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
+  .typing { align-self:flex-start; background:var(--surface-2); border:2px solid var(--line); color:var(--muted); font-style:italic; }
+  .user-choice { align-self:flex-end; background:linear-gradient(135deg, var(--coral), var(--berry)); color:#fff; border-bottom-right-radius:4px; }
+
+  .option-list { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .option-btn {
+    text-align:left; background:var(--surface); border:2px solid var(--line);
+    color:var(--ink); padding:11px 14px; border-radius:14px; font-size:13px; font-weight:700;
+    cursor:pointer; transition:border .2s, background .2s;
+    box-shadow:none;
+  }
+  .option-btn:hover { border-color:var(--sky); background:var(--sky-tint); }
+  .option-btn:active { transform:none; box-shadow:none; }
+  .option-btn:disabled { opacity:.45; cursor:default; }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:10px; }
+
+  /* ---------- Profile / Resume Builder ---------- */
+  .section-divider { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:18px 0 10px; padding-top:12px; border-top:2px dashed var(--line); }
+  .section-divider:first-child { margin-top:0; padding-top:0; border-top:none; }
+  .entry-block { background:var(--surface-2); border:2px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; position:relative; }
+  .entry-block .remove-entry { position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:9px; background:var(--coral-tint); border:2px solid var(--coral-deep); color:var(--coral-deep); display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:800; font-size:13px; }
+  .add-entry-btn { width:100%; padding:11px; border-radius:12px; background:var(--surface); border:2px dashed var(--line-strong); color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; margin-bottom:14px; text-align:center; }
+  .add-entry-btn:hover { border-color:var(--sky); color:var(--sky-deep); }
+  .field-hint { font-size:10.5px; color:var(--muted); font-weight:600; margin:-10px 0 12px; }
+
+  .resume-actions { display:flex; gap:10px; margin-bottom:16px; }
+  .resume-actions button { flex:1; }
+
+  #resumePreviewArea {
+    background:#fff; border:2px solid var(--line); border-radius:18px;
+    padding:26px 24px; color:#1a1a1a; font-family:'Nunito', Arial, sans-serif;
+    box-shadow:0 6px 0 rgba(36,31,61,0.05); margin-bottom:20px;
+  }
+  #resumePreviewArea h2.r-name { font-family:'Nunito', Arial, sans-serif; font-size:22px; font-weight:900; margin-bottom:2px; color:#1a1a1a; }
+  #resumePreviewArea .r-contact { font-size:11.5px; color:#555; margin-bottom:14px; font-weight:600; }
+  #resumePreviewArea .r-contact span { margin-right:10px; }
+  #resumePreviewArea .r-sec-title { font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--coral-deep); border-bottom:2px solid var(--coral); padding-bottom:3px; margin:14px 0 8px; }
+  #resumePreviewArea .r-sec-title:first-of-type { margin-top:0; }
+  #resumePreviewArea .r-item { margin-bottom:9px; }
+  #resumePreviewArea .r-item-head { display:flex; justify-content:space-between; gap:10px; font-size:13px; font-weight:800; color:#1a1a1a; }
+  #resumePreviewArea .r-item-sub { font-size:11.5px; color:#555; font-weight:700; margin-bottom:3px; }
+  #resumePreviewArea .r-item-desc { font-size:12px; color:#333; line-height:1.5; }
+  #resumePreviewArea .r-pills { display:flex; flex-wrap:wrap; gap:6px; }
+  #resumePreviewArea .r-pill { background:#F3F0FC; color:#463B7A; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; }
+  #resumePreviewArea .r-empty-hint { font-size:12px; color:#999; font-style:italic; }
+
+  .toast-banner {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:1000;
+    background:var(--coral); color:#fff; font-weight:700; font-size:12.5px;
+    padding:10px 18px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.2);
+    max-width:90%; text-align:center; display:none;
+  }
+
+  @media print {
+    body * { visibility:hidden; }
+    #resumePreviewArea, #resumePreviewArea * { visibility:visible; }
+    #resumePreviewArea { position:absolute; top:0; left:0; width:100%; border:none; box-shadow:none; border-radius:0; padding:16px 30px; }
+    .tabbar, .fab-chat, #confettiLayer { display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="confettiLayer"></div>
+<div class="app">
+
+  <!-- ================= SCREEN 1: LOGIN ================= -->
+  <div class="screen active" id="loginScreen">
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="mascot-hero">
+          <div class="mascot-face">🦉</div>
+          <div class="speech-bubble" id="loginSpeech">Hey! Main Miko hoon — chalo apna campus game shuru karein 🎮</div>
+        </div>
+        <h1>CampusMind</h1>
+        <p class="subtitle">AI-powered academic risk & peer-support assistant</p>
+        <input type="text" id="studentName" placeholder="Apna naam likho..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); playPop(); handleLogin(); }" />
+        <button onclick="playPop(); handleLogin()">Portal mein login karo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 2: PORTAL ================= -->
+  <div class="screen" id="portalScreen">
+    <div class="topbar">
+      <div class="greeting">
+        <h2>Hello, <span id="nameDisplay"></span> 👋</h2>
+        <p>Apna academic data update karo, AI turant risk score nikaal dega</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="icon-btn" id="muteBtn" onclick="toggleMute()" title="Sound on/off">🔊</div>
+        <div class="icon-btn" onclick="toggleNotifPanel()">
+          🔔
+          <div class="notif-dot" id="notifDot"></div>
+          <div class="notif-panel" id="notifPanel"></div>
+        </div>
+        <div class="avatar" id="avatarInitial" onclick="openProfilePage()" title="Profile & Resume Builder"></div>
+      </div>
+    </div>
+
+    <div class="tab-content">
+
+      <!-- ---------- TAB: HOME ---------- -->
+      <div class="tab-panel active" id="tab-home">
+        <div class="card accent-berry mascot-card">
+          <div class="mascot-row">
+            <div class="mascot-face small">🦉</div>
+            <div class="speech-bubble" id="homeMascotSpeech">Aaj ka streak banate hain — chhota start bhi count hota hai!</div>
+          </div>
+        </div>
+
+        <div class="card accent-sun">
+          <h3>🏅 Your Badges</h3>
+          <div class="badges-strip" id="badgesStrip">
+            <div class="badge-pill">🌱 New Member</div>
+          </div>
+        </div>
+
+        <div class="card accent-mint">
+          <h3>⏱️ Study Hours Today</h3>
+          <div class="streak-box">
+            <div class="streak-num" id="streakNum">0</div>
+            <div style="flex:1;">
+              <label>Weekly goal progress</label>
+              <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            </div>
+          </div>
+          <input type="number" id="studyHours" placeholder="Aaj kitne ghante padha? (e.g. 3)" min="0" />
+          <button onclick="logStudyHours()">Log Karo</button>
+        </div>
+
+        <div class="card accent-sky">
+          <h3>📈 This Week</h3>
+          <div class="card-sub">Roz ka study time — aaj wala bar highlight hai</div>
+          <div class="chart-wrap" id="chartWrap"></div>
+        </div>
+      </div>
+
+      <!-- ---------- TAB: ACADEMICS ---------- -->
+      <div class="tab-panel" id="tab-academics">
+        <div class="card accent-coral">
+          <h3>📊 Academic Details</h3>
+          <label>Overall Attendance (%)</label>
+          <input type="number" id="attendance" min="0" max="100" placeholder="e.g. 68" />
+
+          <label>Subject-wise Marks (%)</label>
+          <div id="subjectList"></div>
+          <div class="add-subject-btn" onclick="addSubjectRow()">+ Subject add karo</div>
+
+          <label>Assignments Missed</label>
+          <input type="number" id="missed" min="0" placeholder="e.g. 3" />
+
+          <label>Kaisa feel kar rahe ho recently? (optional)</label>
+          <textarea id="mood" rows="2" placeholder="e.g. thoda stressed hoon exams ko lekar"></textarea>
+
+          <button onclick="calculateRisk(event)">Risk Score Calculate Karo</button>
+        </div>
+
+        <div class="card accent-sky" id="riskCard" style="display:none;">
+          <h3>🎯 Your Risk Assessment</h3>
+          <div class="gauge-wrap">
+            <div class="gauge" id="gauge">
+              <div class="gauge-inner">
+                <div class="score" id="scoreText">--</div>
+                <div class="label">Risk Score</div>
+              </div>
+            </div>
+            <div class="risk-tag" id="riskTag">--</div>
+          </div>
+          <ul class="suggestions" id="suggestionsList"></ul>
+          <div class="mascot-row mascot-react" id="mascotReact" style="display:none; margin-top:14px;">
+            <div class="mascot-face small" id="mascotReactFace">🦉</div>
+            <div class="speech-bubble" id="mascotReactSpeech"></div>
+          </div>
+        </div>
+
+        <div class="counselor-cta" id="counselorCta" style="display:none;" onclick="openChatPage()">
+          <div class="icon">💬</div>
+          <div>
+            <strong>AI Counselor is here for you</strong>
+            <p>Risk thoda high dikh raha hai — chalo baat karte hain.</p>
+          </div>
+          <div class="arrow">→</div>
+        </div>
+      </div>
+
+      <!-- ---------- TAB: LEADERBOARD ---------- -->
+      <div class="tab-panel" id="tab-leaderboard">
+        <div class="card accent-sun">
+          <h3>🏆 Weekly Leaderboard</h3>
+          <div class="card-sub">Demo classmates shown alongside your live data — real ranks update as more students log in.</div>
+          <div id="leaderboardList"></div>
+        </div>
+      </div>
+
+      <!-- ---------- TAB: RESOURCES ---------- -->
+      <div class="tab-panel" id="tab-resources">
+        <div class="card accent-mint">
+          <h3>📚 Resources</h3>
+          <div class="resource-item" onclick="openChatPage()">
+            <div class="r-icon">🤖</div>
+            <div class="r-text"><strong>AI Counselor Chat</strong><span>Kabhi bhi baat karne ke liye</span></div>
+          </div>
+          <div class="resource-item">
+            <div class="r-icon">👨‍🏫</div>
+            <div class="r-text"><strong>Faculty Mentor Directory</strong><span>Apne department mentor se connect karo</span></div>
+          </div>
+          <div class="resource-item">
+            <div class="r-icon">🛡️</div>
+            <div class="r-text"><strong>Anti-Ragging / Support Cell</strong><span>Confidential reporting & help</span></div>
+          </div>
+          <div class="resource-item">
+            <div class="r-icon">📅</div>
+            <div class="r-text"><strong>Study Group Finder</strong><span>Apne subject ke peers dhoondo</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ---------- Bottom tab bar ---------- -->
+    <div class="tabbar">
+      <button class="tab-btn active" onclick="switchTab('home', this)"><span class="tab-icon">🏠</span>Home</button>
+      <button class="tab-btn" onclick="switchTab('academics', this)"><span class="tab-icon">📊</span>Academics</button>
+      <button class="tab-btn" onclick="switchTab('leaderboard', this)"><span class="tab-icon">🏆</span>Rank</button>
+      <button class="tab-btn" onclick="switchTab('resources', this)"><span class="tab-icon">📚</span>Resources</button>
+    </div>
+
+    <!-- ---------- Floating chat button ---------- -->
+    <button class="fab-chat" onclick="openChatPage()" title="AI Counselor se baat karo">💬</button>
+  </div>
+
+  <!-- ================= SCREEN 3: AI COUNSELOR CHAT (separate page) ================= -->
+  <div class="screen" id="chatScreen">
+    <div class="chat-page-header">
+      <div class="back-btn" onclick="backToPortal()">←</div>
+      <div>
+        <h2>🦉 AI Counselor</h2>
+        <p>Ek option choose karo, koi typing nahi chahiye</p>
+      </div>
+    </div>
+    <div class="card accent-berry">
+      <div class="chat-window" id="chatWindow"></div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 4: PROFILE + RESUME BUILDER ================= -->
+  <div class="screen" id="profileScreen">
+    <div class="chat-page-header">
+      <div class="back-btn" onclick="backToPortal()">←</div>
+      <div>
+        <h2>🪪 Profile & Resume Builder</h2>
+        <p>Apni details bharo, neeche live resume ban jayega</p>
+      </div>
+    </div>
+
+    <div class="card accent-sky">
+      <div class="section-divider">Basic Info</div>
+      <div class="row">
+        <div><label>Full Name</label><input type="text" id="rFullName" placeholder="e.g. Aarav Sharma"></div>
+        <div><label>Email</label><input type="text" id="rEmail" placeholder="e.g. aarav@email.com"></div>
+      </div>
+      <div class="row">
+        <div><label>Phone</label><input type="text" id="rPhone" placeholder="e.g. +91 98765 43210"></div>
+        <div><label>City / Location</label><input type="text" id="rLocation" placeholder="e.g. Pune, India"></div>
+      </div>
+      <div class="row">
+        <div><label>LinkedIn URL</label><input type="text" id="rLinkedin" placeholder="linkedin.com/in/..."></div>
+        <div><label>GitHub / Portfolio URL</label><input type="text" id="rGithub" placeholder="github.com/..."></div>
+      </div>
+      <label>Career Objective / Summary</label>
+      <textarea id="rSummary" rows="3" placeholder="2-3 lines about your goal and strengths"></textarea>
+
+      <div class="section-divider">Education</div>
+      <div class="row">
+        <div><label>Degree / Program</label><input type="text" id="rDegree" placeholder="e.g. B.Tech CSE"></div>
+        <div><label>University / College</label><input type="text" id="rCollege" placeholder="e.g. XYZ Institute"></div>
+      </div>
+      <div class="row">
+        <div><label>CGPA / Percentage</label><input type="text" id="rCgpa" placeholder="e.g. 8.4 CGPA"></div>
+        <div><label>Graduation Year</label><input type="text" id="rGradYear" placeholder="e.g. 2027"></div>
+      </div>
+      <div class="row">
+        <div><label>12th School & %</label><input type="text" id="r12th" placeholder="e.g. ABC School — 88%"></div>
+        <div><label>10th School & %</label><input type="text" id="r10th" placeholder="e.g. XYZ School — 91%"></div>
+      </div>
+
+      <div class="section-divider">Skills & Languages</div>
+      <label>Technical Skills (comma separated)</label>
+      <input type="text" id="rTechSkills" placeholder="e.g. Python, React, SQL, Git">
+      <label>Soft Skills (comma separated)</label>
+      <input type="text" id="rSoftSkills" placeholder="e.g. Communication, Teamwork, Leadership">
+      <label>Languages Known (comma separated)</label>
+      <input type="text" id="rLanguages" placeholder="e.g. English, Hindi">
+
+      <div class="section-divider">Projects</div>
+      <div id="projectList"></div>
+      <div class="add-entry-btn" onclick="addProjectRow()">+ Project add karo</div>
+
+      <div class="section-divider">Internships / Experience</div>
+      <div id="experienceList"></div>
+      <div class="add-entry-btn" onclick="addExperienceRow()">+ Experience add karo</div>
+
+      <div class="section-divider">Certifications & Achievements</div>
+      <label>Certifications (comma separated)</label>
+      <input type="text" id="rCerts" placeholder="e.g. AWS Cloud Practitioner, NPTEL DBMS">
+      <label>Achievements / Awards (comma separated)</label>
+      <input type="text" id="rAchievements" placeholder="e.g. Hackathon Winner 2025, Dean's List">
+
+      <div class="section-divider">Extra</div>
+      <label>Positions of Responsibility (comma separated)</label>
+      <input type="text" id="rPositions" placeholder="e.g. Club Secretary, Class Rep">
+      <label>Extracurricular Activities (comma separated)</label>
+      <input type="text" id="rExtra" placeholder="e.g. Basketball, Debate Club">
+      <label>Hobbies / Interests (comma separated)</label>
+      <input type="text" id="rHobbies" placeholder="e.g. Chess, Photography, Reading">
+
+      <button onclick="generateResume()">✨ Resume Generate Karo</button>
+    </div>
+
+    <div class="card accent-mint" id="resumeCard" style="display:none;">
+      <h3>📄 Resume Preview</h3>
+      <div class="resume-actions">
+        <button class="btn-ghost" onclick="downloadResumePDF()" id="downloadPdfBtn">⬇️ Download PDF</button>
+      </div>
+      <div id="resumePreviewArea"></div>
+    </div>
+  </div>
+
+</div>
+<div class="toast-banner" id="toastBanner"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+  /* ============ BACKEND CONFIG ============ */
+  const API_BASE = "http://localhost:5000/api";
+  let currentStudent = "";
+
+  /* ============ SOUND EFFECTS ============ */
+  let soundOn = true;
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+    }
+    return audioCtx;
+  }
+  function playTone(freq, dur, type) {
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.09, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur / 1000);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + dur / 1000);
+  }
+  function playPop() { playTone(520, 110, 'triangle'); }
+  function playSuccessChime() { playTone(660, 140); setTimeout(function () { playTone(880, 220); }, 110); }
+  function playCoin() { playTone(988, 90, 'square'); setTimeout(function () { playTone(1318, 140, 'square'); }, 80); }
+  function toggleMute() {
+    soundOn = !soundOn;
+    document.getElementById('muteBtn').textContent = soundOn ? '🔊' : '🔇';
+    if (soundOn) ensureAudio();
+  }
+
+  /* ============ CONFETTI ============ */
+  function confettiBurst() {
+    const colors = ['#FF6B57', '#2FD897', '#FFC444', '#4EA1FF', '#FF5FA2'];
+    const layer = document.getElementById('confettiLayer');
+    const count = 28;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      const size = 6 + Math.random() * 6;
+      const duration = 900 + Math.random() * 700;
+      el.style.left = (Math.random() * 100) + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.width = size + 'px';
+      el.style.height = (size * 1.4) + 'px';
+      el.style.animationDuration = duration + 'ms';
+      el.style.setProperty('--rot', (Math.random() * 360) + 'deg');
+      layer.appendChild(el);
+      setTimeout((function (node) { return function () { node.remove(); }; })(el), duration + 60);
+    }
+  }
+
+  /* ============ LOGIN ============ */
+  async function handleLogin() {
+    const nameInput = document.getElementById('studentName');
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); nameInput.style.borderColor = '#FF6B57'; return; }
+
+    currentStudent = name;
+    document.getElementById('nameDisplay').textContent = name;
+    document.getElementById('avatarInitial').textContent = name.charAt(0).toUpperCase();
+
+    try {
+      await fetch(API_BASE + "/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+    } catch (err) {
+      console.warn("Backend not reachable, continuing in offline mode:", err);
+    }
+
+    switchScreen('loginScreen', 'portalScreen');
+    loadStudyDataFromStorage();
+    renderWeeklyChart();
+    renderLeaderboard();
+  }
+
+  function switchScreen(hideId, showId) {
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById(showId).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ============ ERROR VISIBILITY (so nothing fails silently) ============ */
+  function showToast(msg) {
+    const t = document.getElementById('toastBanner');
+    if (!t) { console.warn(msg); return; }
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(function(){ t.style.display = 'none'; }, 3500);
+  }
+  window.addEventListener('error', function(e){
+    showToast('⚠️ Kuch gadbad hui: ' + (e.message || 'unknown error'));
+  });
+
+  /* ============ TAB NAVIGATION ============ */
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('tab-' + tabId).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    if (tabId === 'leaderboard') renderLeaderboard();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ============ NOTIFICATIONS ============ */
+  const notifications = [];
+  function pushNotification(icon, title) {
+    notifications.unshift({ icon: icon, title: title, time: 'Abhi' });
+    if (notifications.length > 20) notifications.pop();
+    document.getElementById('notifDot').style.display = 'block';
+    renderNotifPanel();
+  }
+  function toggleNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) document.getElementById('notifDot').style.display = 'none';
+  }
+  function renderNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    if (notifications.length === 0) {
+      panel.innerHTML = '<div class="notif-empty">Koi notification nahi abhi</div>';
+      return;
+    }
+    panel.innerHTML = notifications.map(function(n){
+      return '<div class="notif-item"><strong>' + n.icon + ' ' + n.title + '</strong><span>' + n.time + '</span></div>';
+    }).join('');
+  }
+  document.addEventListener('click', function(e){
+    const btn = document.querySelector('.icon-btn');
+    if (btn && !btn.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
+  });
+
+  /* ============ SUBJECTS ============ */
+  let subjectCount = 0;
+  function addSubjectRow(name, marks) {
+    name = name || ''; marks = marks || '';
+    subjectCount++;
+    const wrap = document.getElementById('subjectList');
+    const row = document.createElement('div');
+    row.className = 'subject-row';
+    row.id = 'subjectRow' + subjectCount;
+    row.innerHTML =
+      '<input type="text" class="sname" placeholder="Subject (e.g. DSA)" value="' + name + '">' +
+      '<input type="number" class="smarks" placeholder="Marks %" min="0" max="100" value="' + marks + '">' +
+      '<div class="remove-btn" onclick="document.getElementById(\'subjectRow' + subjectCount + '\').remove()">✕</div>';
+    wrap.appendChild(row);
+  }
+  addSubjectRow('DSA', '');
+  addSubjectRow('Maths', '');
+
+  /* ============ STUDY HOURS + WEEKLY CHART ============ */
+  const STUDY_STORAGE_KEY = 'campusmind_study_data';
+  const dailyHours = [0, 0, 0, 0, 0, 0, 0]; // Mon..Sun
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyGoal = 20;
+  function todayIndex() { return (new Date().getDay() + 6) % 7; }
+
+  function renderWeeklyChart() {
+    const max = Math.max(4, ...dailyHours);
+    const wrap = document.getElementById('chartWrap');
+    wrap.innerHTML = dailyHours.map(function(v, i){
+      const pct = Math.max(4, Math.round((v / max) * 100));
+      const isToday = i === todayIndex();
+      return '<div class="chart-col"><div class="chart-bar' + (isToday ? ' today' : '') + '" style="height:' + pct + '%" title="' + v + 'h"></div><div class="chart-label">' + dayLabels[i] + '</div></div>';
+    }).join('');
+  }
+
+  async function logStudyHours() {
+    const val = parseFloat(document.getElementById('studyHours').value) || 0;
+    if (val <= 0) return;
+
+    playPop();
+    dailyHours[todayIndex()] += val;
+    const totalWeeklyHours = dailyHours.reduce(function(a, b){ return a + b; }, 0);
+
+    document.getElementById('streakNum').textContent = Math.round(totalWeeklyHours * 10) / 10;
+    const pct = Math.min(100, Math.round((totalWeeklyHours / weeklyGoal) * 100));
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('studyHours').value = '';
+    renderWeeklyChart();
+
+    document.getElementById('homeMascotSpeech').textContent = val >= 3
+      ? ('Wah! ' + val + ' ghante — solid session tha! 🔥')
+      : ('Nice, ' + val + ' ghante log ho gaye. Chhota chhota progress bhi progress hai 💪');
+
+    if (totalWeeklyHours >= weeklyGoal) addBadge('🔥 Goal Crusher');
+    else if (totalWeeklyHours >= 10) addBadge('📈 Consistent Learner');
+
+    try {
+      await fetch(API_BASE + "/study-hours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: currentStudent, hours: val }),
+      });
+    } catch (err) {
+      console.warn("Backend not reachable:", err);
+    }
+
+    saveStudyDataToStorage();
+    renderLeaderboard();
+  }
+
+  function saveStudyDataToStorage() {
+    try {
+      localStorage.setItem(STUDY_STORAGE_KEY, JSON.stringify({
+        name: currentStudent, dailyHours: dailyHours, badges: [...earnedBadges]
+      }));
+    } catch (e) { console.warn('Could not save study data locally:', e); }
+  }
+
+  function loadStudyDataFromStorage() {
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(STUDY_STORAGE_KEY) || 'null'); }
+    catch (e) { data = null; }
+    if (!data || data.name !== currentStudent) return;
+
+    for (let i = 0; i < 7; i++) dailyHours[i] = data.dailyHours[i] || 0;
+    (data.badges || []).forEach(function(b){ if (b !== '🌱 New Member') addBadgeSilently(b); });
+
+    const totalWeeklyHours = dailyHours.reduce(function(a, b){ return a + b; }, 0);
+    document.getElementById('streakNum').textContent = Math.round(totalWeeklyHours * 10) / 10;
+    document.getElementById('progressFill').style.width = Math.min(100, Math.round((totalWeeklyHours / weeklyGoal) * 100)) + '%';
+  }
+
+  function addBadgeSilently(label) {
+    if (earnedBadges.has(label)) return;
+    earnedBadges.add(label);
+    const strip = document.getElementById('badgesStrip');
+    const pill = document.createElement('div');
+    pill.className = 'badge-pill';
+    pill.textContent = label;
+    strip.appendChild(pill);
+  }
+
+  const earnedBadges = new Set(['🌱 New Member']);
+  function addBadge(label) {
+    if (earnedBadges.has(label)) return;
+    earnedBadges.add(label);
+    const strip = document.getElementById('badgesStrip');
+    const pill = document.createElement('div');
+    pill.className = 'badge-pill pop-in';
+    pill.textContent = label;
+    strip.appendChild(pill);
+    playCoin();
+    confettiBurst();
+    pushNotification('🏅', 'Naya badge unlock: ' + label);
+  }
+
+  /* ============ LEADERBOARD ============ */
+  async function renderLeaderboard() {
+    let backendList = [];
+    try {
+      const res = await fetch(API_BASE + "/leaderboard");
+      if (res.ok) backendList = await res.json();
+    } catch (err) {
+      console.warn("Leaderboard backend not reachable, using local data:", err);
+    }
+
+    // Demo classmates so the leaderboard doesn't look empty in a single-student run —
+    // in a real hackathon demo with multiple logins, backendList carries the live data.
+    const placeholders = [
+      { name: 'Aarav Sharma', studyHours: 18 },
+      { name: 'Priya Verma', studyHours: 15 },
+      { name: 'Rohan Gupta', studyHours: 9 },
+      { name: 'Simran Kaur', studyHours: 6 },
+    ];
+
+    const myTotal = dailyHours.reduce(function(a, b){ return a + b; }, 0);
+    const selfFromBackend = backendList.find(function(s){ return s.name === currentStudent; });
+    const meEntry = { name: currentStudent || 'You', studyHours: selfFromBackend ? selfFromBackend.studyHours : myTotal, isMe: true };
+
+    const otherReal = backendList.filter(function(s){ return s.name !== currentStudent; });
+    const merged = placeholders.concat(otherReal.map(function(s){ return { name: s.name, studyHours: s.studyHours }; })).concat([meEntry]);
+    merged.sort(function(a, b){ return b.studyHours - a.studyHours; });
+
+    const rankClass = ['gold', 'silver', 'bronze'];
+    const list = document.getElementById('leaderboardList');
+    list.innerHTML = merged.map(function(s, i){
+      const rc = rankClass[i] || '';
+      return '<div class="leader-item' + (s.isMe ? ' me' : '') + '">' +
+        '<div class="leader-rank ' + rc + '">' + (i + 1) + '</div>' +
+        '<div class="leader-info"><strong>' + s.name + (s.isMe ? ' (You)' : '') + '</strong><span>Weekly study time</span></div>' +
+        '<div class="leader-hours">' + (Math.round(s.studyHours * 10) / 10) + 'h</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* ============ RISK CALCULATION (via backend) ============ */
+  async function calculateRisk(evt) {
+    playPop();
+    const attendance = parseFloat(document.getElementById('attendance').value) || 0;
+    const missed = parseFloat(document.getElementById('missed').value) || 0;
+    const mood = document.getElementById('mood').value;
+
+    const rows = document.querySelectorAll('.subject-row');
+    const subjects = [];
+    rows.forEach(function(row){
+      const name = row.querySelector('.sname').value;
+      const marks = row.querySelector('.smarks').value;
+      if (marks !== '') subjects.push({ name: name, marks: marks });
+    });
+
+    const btn = evt.target;
+    const originalText = btn.textContent;
+    btn.textContent = "Calculating...";
+    btn.disabled = true;
+
+    let result;
+    try {
+      const res = await fetch(API_BASE + "/risk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: currentStudent, attendance, subjects, missed, mood }),
+      });
+      if (!res.ok) throw new Error("Backend error");
+      result = await res.json();
+    } catch (err) {
+      console.warn("Backend not reachable — using local fallback calculation:", err);
+      result = localRiskFallback(attendance, subjects, missed, mood);
+    }
+
+    btn.textContent = originalText;
+    btn.disabled = false;
+
+    renderRisk(result.riskScore, result.level, result.suggestions);
+  }
+
+  // Used only if the Express backend (server.js) isn't running — keeps the demo working either way
+  function localRiskFallback(attendance, subjects, missed, mood) {
+    const marksVals = subjects.map(function(s){ return parseFloat(s.marks); }).filter(function(m){ return !isNaN(m); });
+    const hasMarks = marksVals.length > 0;
+    const avgMarks = hasMarks ? marksVals.reduce(function(a,b){return a+b;},0) / marksVals.length : null;
+
+    let healthScore = hasMarks ? (attendance * 0.5 + avgMarks * 0.5) : attendance;
+    healthScore -= Math.min(missed * 3, 15);
+
+    const moodLower = (mood || '').toLowerCase();
+    const negativeWords = ['stress','tension','sad','anxious','anxiety','depress','akela','udaas','thak','give up','chodna','lonely','pressure'];
+    if (negativeWords.some(function(w){ return moodLower.includes(w); })) healthScore -= 12;
+
+    healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+    const riskScore = 100 - healthScore;
+
+    let level = 'LOW';
+    let suggestions = [
+      "Great going! Current attendance aur study routine maintain karo.",
+      "Ek peer-mentor bano — juniors ko help karo, leadership skill build hoga.",
+      "Ek naya skill (coding/design/communication) side mein seekhna start karo."
+    ];
+    if (riskScore >= 40 && riskScore < 65) {
+      level = 'MEDIUM';
+      suggestions = [
+        "Attendance ko 75%+ tak le jaane ka target banao agle 3 weeks mein.",
+        "Weak subjects ke liye weekly 2 extra study hours block karo.",
+        "Ek study buddy/senior mentor dhoondo jo doubts clear kar sake."
+      ];
+    } else if (riskScore >= 65) {
+      level = 'HIGH';
+      suggestions = [
+        "Turant apne academic advisor/mentor se meeting schedule karo.",
+        "Attendance aur submissions ka daily checklist banao.",
+        "Akele struggle mat karo — AI Counselor ya trusted senior/faculty se baat karo."
+      ];
+    }
+    return { riskScore, level, suggestions };
+  }
+
+  function renderRisk(riskScore, level, suggestions) {
+    document.getElementById('riskCard').style.display = 'block';
+    document.getElementById('scoreText').textContent = riskScore;
+
+    let gaugeColor = 'var(--mint)', tagClass = 'risk-low', tagText = 'LOW RISK';
+    let mascotEmoji = '🦉', mascotText = 'Zabardast! Tum bilkul theek track pe ho — yahi consistency rakho.';
+    if (level === 'MEDIUM') {
+      gaugeColor = 'var(--sun)'; tagClass = 'risk-medium'; tagText = 'MEDIUM RISK';
+      mascotEmoji = '🦉'; mascotText = 'Thoda dhyaan dene ka time hai — chhote steps se turnaround ho jayega. Tum kar sakte ho!';
+      addBadge('⚠️ Needs Focus');
+    }
+    if (level === 'HIGH') {
+      gaugeColor = 'var(--coral)'; tagClass = 'risk-high'; tagText = 'HIGH RISK';
+      mascotEmoji = '🦉'; mascotText = 'Main tumhare saath hoon. Akele struggle mat karo — neeche AI Counselor se baat karo, ek chhota step abhi lelo.';
+    }
+
+    document.getElementById('gauge').style.background = 'conic-gradient(' + gaugeColor + ' ' + riskScore + '%, var(--line) 0)';
+    const tagEl = document.getElementById('riskTag');
+    tagEl.className = 'risk-tag ' + tagClass;
+    tagEl.textContent = tagText;
+
+    const list = document.getElementById('suggestionsList');
+    list.innerHTML = '';
+    suggestions.forEach(function(s){ const li = document.createElement('li'); li.textContent = s; list.appendChild(li); });
+
+    document.getElementById('mascotReact').style.display = 'flex';
+    document.getElementById('mascotReactFace').textContent = mascotEmoji;
+    document.getElementById('mascotReactSpeech').textContent = mascotText;
+
+    const cta = document.getElementById('counselorCta');
+    cta.style.display = riskScore >= 40 ? 'flex' : 'none';
+
+    if (level === 'LOW') { confettiBurst(); playSuccessChime(); }
+    else { playTone(392, 160); }
+
+    pushNotification(level === 'HIGH' ? '🚨' : level === 'MEDIUM' ? '⚠️' : '✅', 'Risk score updated: ' + tagText);
+  }
+
+  /* ============ CHAT PAGE NAV ============ */
+  function openChatPage() {
+    playPop();
+    switchScreen('portalScreen', 'chatScreen');
+    if (document.getElementById('chatWindow').childElementCount === 0) {
+      renderNode('root');
+    }
+  }
+  function backToPortal() { switchScreen(null, 'portalScreen'); }
+
+  /* ============ PROFILE & RESUME BUILDER ============ */
+  const RESUME_STORAGE_KEY = 'campusmind_resume_profile';
+  let projectCount = 0;
+  let experienceCount = 0;
+
+  function openProfilePage() {
+    try {
+      playPop();
+      switchScreen('portalScreen', 'profileScreen');
+      loadProfileFromStorage();
+    } catch (e) { showToast('Profile open nahi ho paaya: ' + e.message); }
+  }
+
+  function addProjectRow(data) {
+    data = data || {};
+    projectCount++;
+    const wrap = document.getElementById('projectList');
+    const block = document.createElement('div');
+    block.className = 'entry-block';
+    block.id = 'projectRow' + projectCount;
+    block.innerHTML =
+      '<div class="remove-entry" onclick="document.getElementById(\'projectRow' + projectCount + '\').remove()">✕</div>' +
+      '<label>Project Title</label><input type="text" class="p-title" placeholder="e.g. Campus Event Tracker" value="' + (data.title || '') + '">' +
+      '<label>Tech Stack</label><input type="text" class="p-tech" placeholder="e.g. React, Node.js, MongoDB" value="' + (data.tech || '') + '">' +
+      '<label>Description</label><textarea class="p-desc" rows="2" placeholder="What it does, your role, impact">' + (data.desc || '') + '</textarea>';
+    wrap.appendChild(block);
+  }
+
+  function addExperienceRow(data) {
+    data = data || {};
+    experienceCount++;
+    const wrap = document.getElementById('experienceList');
+    const block = document.createElement('div');
+    block.className = 'entry-block';
+    block.id = 'experienceRow' + experienceCount;
+    block.innerHTML =
+      '<div class="remove-entry" onclick="document.getElementById(\'experienceRow' + experienceCount + '\').remove()">✕</div>' +
+      '<div class="row"><div><label>Role</label><input type="text" class="e-role" placeholder="e.g. Backend Intern" value="' + (data.role || '') + '"></div>' +
+      '<div><label>Company / Org</label><input type="text" class="e-company" placeholder="e.g. TechCorp" value="' + (data.company || '') + '"></div></div>' +
+      '<label>Duration</label><input type="text" class="e-duration" placeholder="e.g. May 2025 – Jul 2025" value="' + (data.duration || '') + '">' +
+      '<label>Description</label><textarea class="e-desc" rows="2" placeholder="What you did, key outcomes">' + (data.desc || '') + '</textarea>';
+    wrap.appendChild(block);
+  }
+
+  function collectProfileData() {
+    const val = function(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const projects = [...document.querySelectorAll('#projectList .entry-block')].map(function(b){
+      return {
+        title: b.querySelector('.p-title').value.trim(),
+        tech: b.querySelector('.p-tech').value.trim(),
+        desc: b.querySelector('.p-desc').value.trim()
+      };
+    }).filter(function(p){ return p.title || p.desc; });
+
+    const experience = [...document.querySelectorAll('#experienceList .entry-block')].map(function(b){
+      return {
+        role: b.querySelector('.e-role').value.trim(),
+        company: b.querySelector('.e-company').value.trim(),
+        duration: b.querySelector('.e-duration').value.trim(),
+        desc: b.querySelector('.e-desc').value.trim()
+      };
+    }).filter(function(e){ return e.role || e.company; });
+
+    return {
+      fullName: val('rFullName'), email: val('rEmail'), phone: val('rPhone'), location: val('rLocation'),
+      linkedin: val('rLinkedin'), github: val('rGithub'), summary: val('rSummary'),
+      degree: val('rDegree'), college: val('rCollege'), cgpa: val('rCgpa'), gradYear: val('rGradYear'),
+      class12: val('r12th'), class10: val('r10th'),
+      techSkills: val('rTechSkills'), softSkills: val('rSoftSkills'), languages: val('rLanguages'),
+      certs: val('rCerts'), achievements: val('rAchievements'),
+      positions: val('rPositions'), extra: val('rExtra'), hobbies: val('rHobbies'),
+      projects: projects, experience: experience
+    };
+  }
+
+  function saveProfileToStorage(data) {
+    try { localStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(data)); }
+    catch (e) { console.warn('Could not save profile locally:', e); }
+  }
+
+  function loadProfileFromStorage() {
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(RESUME_STORAGE_KEY) || 'null'); }
+    catch (e) { data = null; }
+    if (!data) return;
+
+    const setVal = function(id, v){ const el = document.getElementById(id); if (el && !el.value) el.value = v || ''; };
+    setVal('rFullName', data.fullName); setVal('rEmail', data.email); setVal('rPhone', data.phone);
+    setVal('rLocation', data.location); setVal('rLinkedin', data.linkedin); setVal('rGithub', data.github);
+    setVal('rSummary', data.summary); setVal('rDegree', data.degree); setVal('rCollege', data.college);
+    setVal('rCgpa', data.cgpa); setVal('rGradYear', data.gradYear); setVal('r12th', data.class12);
+    setVal('r10th', data.class10); setVal('rTechSkills', data.techSkills); setVal('rSoftSkills', data.softSkills);
+    setVal('rLanguages', data.languages); setVal('rCerts', data.certs); setVal('rAchievements', data.achievements);
+    setVal('rPositions', data.positions); setVal('rExtra', data.extra); setVal('rHobbies', data.hobbies);
+
+    if (document.getElementById('projectList').childElementCount === 0 && data.projects) {
+      data.projects.forEach(function(p){ addProjectRow(p); });
+    }
+    if (document.getElementById('experienceList').childElementCount === 0 && data.experience) {
+      data.experience.forEach(function(e){ addExperienceRow(e); });
+    }
+  }
+
+  function pillList(csv) {
+    if (!csv) return '';
+    return '<div class="r-pills">' + csv.split(',').map(function(s){ return s.trim(); }).filter(Boolean)
+      .map(function(s){ return '<div class="r-pill">' + s + '</div>'; }).join('') + '</div>';
+  }
+
+  function generateResume() {
+    try {
+      playPop();
+      const d = collectProfileData();
+      saveProfileToStorage(d);
+
+      if (!d.fullName) {
+        showToast('Kam se kam Full Name toh bharo 🙂');
+        document.getElementById('rFullName').focus();
+        return;
+      }
+
+      const contactBits = [d.phone, d.email, d.location, d.linkedin, d.github].filter(Boolean);
+      let html = '';
+      html += '<h2 class="r-name">' + d.fullName + '</h2>';
+      html += '<div class="r-contact">' + contactBits.map(function(c){ return '<span>' + c + '</span>'; }).join(' · ') + '</div>';
+
+      if (d.summary) {
+        html += '<div class="r-sec-title">Summary</div><div class="r-item-desc">' + d.summary + '</div>';
+      }
+
+      if (d.degree || d.college) {
+        html += '<div class="r-sec-title">Education</div>';
+        html += '<div class="r-item"><div class="r-item-head"><span>' + (d.degree || '') + '</span><span>' + (d.gradYear || '') + '</span></div>';
+        html += '<div class="r-item-sub">' + (d.college || '') + (d.cgpa ? ' · ' + d.cgpa : '') + '</div></div>';
+        if (d.class12) html += '<div class="r-item"><div class="r-item-sub">12th: ' + d.class12 + '</div></div>';
+        if (d.class10) html += '<div class="r-item"><div class="r-item-sub">10th: ' + d.class10 + '</div></div>';
+      }
+
+      if (d.techSkills || d.softSkills) {
+        html += '<div class="r-sec-title">Skills</div>';
+        if (d.techSkills) html += pillList(d.techSkills);
+        if (d.softSkills) html += '<div style="margin-top:6px">' + pillList(d.softSkills) + '</div>';
+      }
+
+      if (d.languages) {
+        html += '<div class="r-sec-title">Languages</div>' + pillList(d.languages);
+      }
+
+      if (d.projects && d.projects.length) {
+        html += '<div class="r-sec-title">Projects</div>';
+        d.projects.forEach(function(p){
+          html += '<div class="r-item"><div class="r-item-head"><span>' + p.title + '</span></div>';
+          if (p.tech) html += '<div class="r-item-sub">' + p.tech + '</div>';
+          if (p.desc) html += '<div class="r-item-desc">' + p.desc + '</div>';
+          html += '</div>';
+        });
+      }
+
+      if (d.experience && d.experience.length) {
+        html += '<div class="r-sec-title">Experience</div>';
+        d.experience.forEach(function(e){
+          html += '<div class="r-item"><div class="r-item-head"><span>' + e.role + (e.company ? ' — ' + e.company : '') + '</span><span>' + (e.duration || '') + '</span></div>';
+          if (e.desc) html += '<div class="r-item-desc">' + e.desc + '</div>';
+          html += '</div>';
+        });
+      }
+
+      if (d.certs) html += '<div class="r-sec-title">Certifications</div>' + pillList(d.certs);
+      if (d.achievements) html += '<div class="r-sec-title">Achievements</div>' + pillList(d.achievements);
+      if (d.positions) html += '<div class="r-sec-title">Positions of Responsibility</div>' + pillList(d.positions);
+      if (d.extra) html += '<div class="r-sec-title">Extracurriculars</div>' + pillList(d.extra);
+      if (d.hobbies) html += '<div class="r-sec-title">Hobbies & Interests</div>' + pillList(d.hobbies);
+
+      document.getElementById('resumePreviewArea').innerHTML = html;
+      document.getElementById('resumeCard').style.display = 'block';
+      document.getElementById('resumeCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      confettiBurst();
+      playSuccessChime();
+    } catch (e) {
+      showToast('Resume generate karte waqt error: ' + e.message);
+    }
+  }
+
+  // Seed one blank project/experience row so the form doesn't look empty
+  addProjectRow();
+  addExperienceRow();
+
+  function printResume() {
+    if (!document.getElementById('resumePreviewArea').innerHTML.trim()) {
+      showToast('Pehle "Resume Generate Karo" dabao');
+      return;
+    }
+    window.print();
+  }
+
+  function downloadResumePDF() {
+    const area = document.getElementById('resumePreviewArea');
+    if (!area.innerHTML.trim()) {
+      showToast('Pehle "Resume Generate Karo" dabao');
+      return;
+    }
+
+    const rawName = (document.getElementById('rFullName').value || 'Resume').trim();
+    const fileName = (rawName.replace(/[^a-zA-Z0-9]+/g, '_') || 'Resume') + '_Resume.pdf';
+
+    if (typeof html2pdf === 'undefined') {
+      showToast('PDF tool load nahi ho paaya (internet check karo) — print dialog khol rahe hain');
+      window.print();
+      return;
+    }
+
+    const btn = document.getElementById('downloadPdfBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'PDF ban raha hai...';
+    btn.disabled = true;
+
+    const opt = {
+      margin: 0.35,
+      filename: fileName,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(area).save()
+      .then(function () {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      })
+      .catch(function (e) {
+        console.warn('PDF generation failed:', e);
+        showToast('PDF download fail hua — print dialog khol rahe hain');
+        btn.textContent = originalText;
+        btn.disabled = false;
+        window.print();
+      });
+  }
+
+  /* ============ OPTION-BASED CHAT TREE ============ */
+  const chatTree = {
+    root: {
+      bot: "Hey! Main tumhara AI Counselor hoon. Neeche se choose karo kis cheez ke baare mein baat karni hai:",
+      options: [
+        { label:"📚 Academic pressure / marks", next:"academic" },
+        { label:"📅 Attendance issues", next:"attendance" },
+        { label:"💰 Financial stress", next:"financial" },
+        { label:"🏠 Hostel / roommate issues", next:"hostel" },
+        { label:"👨‍👩‍👧 Family expectations", next:"family" },
+        { label:"💼 Placement / career anxiety", next:"career" },
+        { label:"⏰ Time management / procrastination", next:"time" },
+        { label:"😔 Feeling low / lonely", next:"low" },
+        { label:"🚨 Bullying / ragging", next:"bully" },
+        { label:"🏡 Homesick", next:"homesick" }
+      ]
+    },
+    academic: {
+      bot: "Academic pressure bahut common hai — tum akele nahi ho. Ek cheez try karo: sabse weak topic ko chhote 20-min chunks mein todo, aur roz sirf ek chunk complete karo. Progress dheere dheere dikhega.",
+      options: [ { label:"Aur ek tip do", next:"academic2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    academic2: {
+      bot: "Ek aur cheez: exam se pehle poora syllabus revise karne ki koshish mat karo — top 3 high-weightage topics choose karo aur unhe strong banao. 'Kam lekin pakka' strategy zyada kaam aati hai last-minute mein.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    attendance: {
+      bot: "Attendance improve karne ka best tareeka: kal se 'zero bunk' target rakho. Agar genuine reason se miss ho jaye, turant kisi classmate se notes le lo — gap building mat hone do.",
+      options: [ { label:"Aur ek tip do", next:"attendance2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    attendance2: {
+      bot: "Ek reminder set karo phone mein har class se 15 min pehle — chhoti si nudge bhi bahut fark daalti hai bunk avoid karne mein.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    financial: {
+      bot: "Financial stress college life mein bahut real hai. College ke financial-aid ya scholarship office se baat karna ek achha starting point hai — kayi students ko iske baare mein pata hi nahi hota.",
+      options: [ { label:"Aur ek tip do", next:"financial2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    financial2: {
+      bot: "Part-time campus opportunities (teaching assistant, library help, event coordination) bhi dekh sakte ho — flexible hours milte hain aur experience bhi.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    hostel: {
+      bot: "Roommate/hostel conflicts stressful ho sakte hain. Ek calm moment mein direct but polite conversation try karo — specific issue point out karo, blame nahi.",
+      options: [ { label:"Aur ek tip do", next:"hostel2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    hostel2: {
+      bot: "Agar baat resolve nahi ho rahi, hostel warden/RA se help lena bilkul normal hai — isके liye hi wo role hota hai.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    family: {
+      bot: "Family expectations ka pressure heavy lag sakta hai. Ek honest conversation try karo jahan tum apne actual interests/limits share karo — kayi parents supportive nikalte hain jab unhe clearly pata chalta hai.",
+      options: [ { label:"Aur ek tip do", next:"family2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    family2: {
+      bot: "Chhote wins share karo unke saath regularly — isse unhe progress dikhta hai aur trust build hota hai, sirf results ka wait nahi karna padta.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    career: {
+      bot: "Placement anxiety normal hai. Ek chhota actionable step: apna resume/profile ek senior ya career-cell se review karwao — clarity milegi ki actually kya improve karna hai.",
+      options: [ { label:"Aur ek tip do", next:"career2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    career2: {
+      bot: "Ek skill per month approach try karo — poora career path ek saath sochne ke bajaye, agle 30 din mein sirf ek concrete skill improve karo.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    time: {
+      bot: "Procrastination guilt se nahi, chhote wins se break hota hai. Try karo: sirf 10 minute ke liye task start karo — 'poora finish karna hai' ka pressure hata do, shuru karna hi goal hai.",
+      options: [ { label:"Aur ek tip do", next:"time2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    time2: {
+      bot: "Study time mein phone dusre room mein rakho — 'out of sight' distraction ko bahut kam kar deta hai.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    low: {
+      bot: "Ye sunke laga tum kaafi kuch akele carry kar rahe ho. Tum akele nahi ho ismein. Agar ye feeling zyada din se hai, please kisi trusted senior, faculty, ya campus counselor se baat zaroor karo — main ek starting point hoon, real support bhi lo.",
+      options: [ { label:"Aur baat karni hai", next:"low2" }, { label:"Thoda better feel ho raha hai 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    low2: {
+      bot: "Abhi ke liye ek chhoti si cheez try karo — kisi ek dost/family member ko ek simple message bhejo 'hi, kaise ho'. Connection rebuild karna chhote steps se shuru hota hai.",
+      options: [ { label:"Thoda better feel ho raha hai 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    bully: {
+      bot: "Ye serious hai aur tumhara sunna zaroori hai. Please college ke Anti-Ragging/Support Cell mein report karo — ye confidential hota hai. Kisi trusted faculty ya mentor ko bhi turant inform karo.",
+      options: [ { label:"Aur guidance chahiye", next:"bully2" }, { label:"Samajh gaya, thanks", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    bully2: {
+      bot: "Incidents (date, time, kya hua) likhte jao — isse reporting aur action lena easier ho jaata hai. Akele face mat karo, ye tumhari galti nahi hai.",
+      options: [ { label:"Samajh gaya, thanks", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    homesick: {
+      bot: "Homesick feel karna bilkul normal hai, especially naye college mein. Family se ek fixed weekly call schedule karo — kuch predictable hona bahut comfort deta hai.",
+      options: [ { label:"Aur ek tip do", next:"homesick2" }, { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    homesick2: {
+      bot: "Campus mein ek chhota routine/community dhoondo (club, sports, study group) — naye connections gradually 'home' jaisa feel dena start karte hain.",
+      options: [ { label:"Ye helpful tha 🙏", next:"end" }, { label:"Kisi aur topic pe baat karni hai", next:"root" } ]
+    },
+    end: {
+      bot: "Glad ye help kar saka! Yaad rakho — help maangna weakness nahi hai. Apna khayal rakhna 💙",
+      options: [ { label:"Ek aur topic explore karu", next:"root" } ]
+    }
+  };
+
+  function renderNode(nodeId) {
+    const node = chatTree[nodeId];
+    const win = document.getElementById('chatWindow');
+
+    const botDiv = document.createElement('div');
+    botDiv.className = 'bubble bot';
+    botDiv.textContent = node.bot;
+    win.appendChild(botDiv);
+
+    const optWrap = document.createElement('div');
+    optWrap.className = 'option-list';
+    node.options.forEach(function(opt){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'option-btn';
+      btn.textContent = opt.label;
+      btn.onclick = function(){ selectOption(opt); };
+      optWrap.appendChild(btn);
+    });
+    win.appendChild(optWrap);
+    win.scrollTop = win.scrollHeight;
+  }
+
+  function selectOption(opt) {
+    playPop();
+    const win = document.getElementById('chatWindow');
+    win.querySelectorAll('.option-btn').forEach(function(b){ b.disabled = true; });
+
+    const userDiv = document.createElement('div');
+    userDiv.className = 'bubble user-choice';
+    userDiv.textContent = opt.label;
+    win.appendChild(userDiv);
+    win.scrollTop = win.scrollHeight;
+
+    const typingEl = document.createElement('div');
+    typingEl.className = 'bubble typing';
+    typingEl.textContent = 'typing...';
+    win.appendChild(typingEl);
+    win.scrollTop = win.scrollHeight;
+
+    setTimeout(function(){
+      typingEl.remove();
+      renderNode(opt.next);
+    }, 500 + Math.random() * 400);
+  }
+</script>
+</body>
+</html>
