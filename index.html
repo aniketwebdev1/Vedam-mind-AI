@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CampusMind — AI Academic Risk Assistant</title>
+<title>VedamMind — AI Academic Risk Assistant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -412,7 +412,7 @@
           <div class="mascot-face">🦉</div>
           <div class="speech-bubble" id="loginSpeech">Hey! Main Miko hoon — chalo apna campus game shuru karein 🎮</div>
         </div>
-        <h1>CampusMind</h1>
+        <h1>VedamMind</h1>
         <p class="subtitle">AI-powered academic risk & peer-support assistant</p>
         <input type="text" id="studentName" placeholder="Apna naam likho..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); playPop(); handleLogin(); }" />
         <button onclick="playPop(); handleLogin()">Portal mein login karo</button>
@@ -829,7 +829,7 @@
   addSubjectRow('Maths', '');
 
   /* ============ STUDY HOURS + WEEKLY CHART ============ */
-  const STUDY_STORAGE_KEY = 'campusmind_study_data';
+  const STUDY_STORAGE_KEY = 'vedammind_study_data';
   const dailyHours = [0, 0, 0, 0, 0, 0, 0]; // Mon..Sun
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const weeklyGoal = 20;
@@ -1094,7 +1094,7 @@
   function backToPortal() { switchScreen(null, 'portalScreen'); }
 
   /* ============ PROFILE & RESUME BUILDER ============ */
-  const RESUME_STORAGE_KEY = 'campusmind_resume_profile';
+  const RESUME_STORAGE_KEY = 'vedammind_resume_profile';
   let projectCount = 0;
   let experienceCount = 0;
 
