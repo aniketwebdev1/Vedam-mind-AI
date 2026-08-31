@@ -368,14 +368,14 @@
   .resume-actions button { flex:1; }
 
   #resumePreviewArea {
-    background:#fff; border:2px solid var(--line); border-radius:18px;
-    padding:26px 24px; color:#1a1a1a; font-family:'Nunito', Arial, sans-serif;
+    background:#fff; border:2px solid #E9E3FA; border-radius:18px;
+    padding:26px 24px; color:#1a1a1a; font-family:Arial, Helvetica, sans-serif;
     box-shadow:0 6px 0 rgba(36,31,61,0.05); margin-bottom:20px;
   }
-  #resumePreviewArea h2.r-name { font-family:'Nunito', Arial, sans-serif; font-size:22px; font-weight:900; margin-bottom:2px; color:#1a1a1a; }
+  #resumePreviewArea h2.r-name { font-family:Arial, Helvetica, sans-serif; font-size:22px; font-weight:900; margin-bottom:2px; color:#1a1a1a; }
   #resumePreviewArea .r-contact { font-size:11.5px; color:#555; margin-bottom:14px; font-weight:600; }
   #resumePreviewArea .r-contact span { margin-right:10px; }
-  #resumePreviewArea .r-sec-title { font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--coral-deep); border-bottom:2px solid var(--coral); padding-bottom:3px; margin:14px 0 8px; }
+  #resumePreviewArea .r-sec-title { font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#DD4A36; border-bottom:2px solid #FF6B57; padding-bottom:3px; margin:14px 0 8px; }
   #resumePreviewArea .r-sec-title:first-of-type { margin-top:0; }
   #resumePreviewArea .r-item { margin-bottom:9px; }
   #resumePreviewArea .r-item-head { display:flex; justify-content:space-between; gap:10px; font-size:13px; font-weight:800; color:#1a1a1a; }
@@ -1309,26 +1309,32 @@
     btn.textContent = 'PDF ban raha hai...';
     btn.disabled = true;
 
+    // Reset scroll before capture — html2canvas can render a blank page
+    // if the window is scrolled down when it grabs the screenshot.
+    window.scrollTo(0, 0);
+
     const opt = {
       margin: 0.35,
       filename: fileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(area).save()
-      .then(function () {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      })
-      .catch(function (e) {
-        console.warn('PDF generation failed:', e);
-        showToast('PDF download fail hua — print dialog khol rahe hain');
-        btn.textContent = originalText;
-        btn.disabled = false;
-        window.print();
-      });
+    setTimeout(function () {
+      html2pdf().set(opt).from(area).save()
+        .then(function () {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        })
+        .catch(function (e) {
+          console.warn('PDF generation failed:', e);
+          showToast('PDF download fail hua — print dialog khol rahe hain');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          window.print();
+        });
+    }, 100);
   }
 
   /* ============ OPTION-BASED CHAT TREE ============ */
